@@ -1,0 +1,166 @@
+
+1. **Client Master Table**:
+CREATE TABLE Client_master (
+    Client_no VARCHAR2(6) PRIMARY KEY CHECK (Client_no LIKE 'C%'),
+    Name VARCHAR2(20) NOT NULL,
+    City VARCHAR2(15),
+    Pincode NUMBER(8),
+    State VARCHAR2(20),
+    Bal_due NUMBER(10, 2)
+);
+
+
+2. **Product Master Table**:
+CREATE TABLE Product_master (
+    Product_no VARCHAR2(6) PRIMARY KEY CHECK (Product_no LIKE 'P%'),
+    Description VARCHAR2(20) NOT NULL,
+    Profit NUMBER(4, 2) NOT NULL,
+    Unit_measure VARCHAR2(10) NOT NULL,
+    Qty_on_hand NUMBER(8) NOT NULL,
+    Reorder_lvl NUMBER(8) NOT NULL,
+    Sell_price NUMBER(8, 2) NOT NULL CHECK (Sell_price > 0),
+    Cost_price NUMBER(8, 2) NOT NULL CHECK (Cost_price > 0)
+);
+
+3. **Salesman Master Table**:
+CREATE TABLE Salesman_master (
+    Salesman_no VARCHAR2(6) PRIMARY KEY CHECK (Salesman_no LIKE 'S%'),
+    Salesman_name VARCHAR2(20) NOT NULL,
+    Address1 VARCHAR2(30) NOT NULL,
+    Address2 VARCHAR2(30),
+    City VARCHAR2(20),
+    Pincode NUMBER(8),
+    State VARCHAR2(20),
+    Sal_amt NUMBER(8, 2) NOT NULL CHECK (Sal_amt > 0),
+    Tgt_to_get NUMBER(6, 2) NOT NULL CHECK (Tgt_to_get > 0),
+    Ytd_sales NUMBER(6, 2) NOT NULL,
+    Remarks VARCHAR2(60)
+);
+
+4. **Sales Order Table**:
+CREATE TABLE Sales_order (
+    Order_no VARCHAR2(6) PRIMARY KEY CHECK (Order_no LIKE 'O%'),
+    Order_date DATE,
+    Client_no VARCHAR2(6) REFERENCES Client_master(Client_no),
+    Delv_Addr VARCHAR2(25),
+    Salesman_no VARCHAR2(6) REFERENCES Salesman_master(Salesman_no)
+);
+
+5. **Sales Order Details Table**:
+CREATE TABLE Sales_order_details (
+    Order_no VARCHAR2(6) REFERENCES Sales_order(Order_no),
+    Product_no VARCHAR2(6) REFERENCES Product_master(Product_no),
+    Qty_ordered NUMBER(8),
+    Qty_disp NUMBER(8),
+    Product_rate NUMBER(10, 2),
+    PRIMARY KEY (Order_no, Product_no)
+);
+
+
+#### **Question 3: Queries**
+1. **Print the description and total qty sold for each product**:
+SELECT P.Description, SUM(SOD.Qty_disp) AS Total_Qty_Sold
+FROM Product_master P
+JOIN Sales_order_details SOD ON P.Product_no = SOD.Product_no
+GROUP BY P.Description;
+
+2. **Find the products which have been sold to Ivan Bayross**:
+SELECT P.Product_no, P.Description
+FROM Product_master P
+JOIN Sales_order_details SOD ON P.Product_no = SOD.Product_no
+JOIN Sales_order SO ON SOD.Order_no = SO.Order_no
+JOIN Client_master CM ON SO.Client_no = CM.Client_no
+WHERE CM.Name = 'Ivan Bayross';
+
+3. **Find the list of clients who have purchased Monitors**:
+SELECT DISTINCT CM.Client_no, CM.Name
+FROM Client_master CM
+JOIN Sales_order SO ON CM.Client_no = SO.Client_no
+JOIN Sales_order_details SOD ON SO.Order_no = SOD.Order_no
+JOIN Product_master P ON SOD.Product_no = P.Product_no
+WHERE P.Description = 'Monitors';
+
+4. **Find the total number of products in stock**:
+SELECT SUM(Qty_on_hand) AS Total_Stock
+FROM Product_master;
+
+5. **Find the list of clients who placed orders worth Rs. 10,000 or more**:
+SELECT DISTINCT CM.Client_no, CM.Name
+FROM Client_master CM
+JOIN Sales_order SO ON CM.Client_no = SO.Client_no
+JOIN Sales_order_details SOD ON SO.Order_no = SOD.Order_no
+WHERE (SOD.Qty_disp * SOD.Product_rate) >= 10000;
+
+6. **Create a DML trigger to restrict inserts into Salesman Master**:
+CREATE OR REPLACE TRIGGER Restrict_Salesman_Insert
+BEFORE INSERT ON Salesman_master
+FOR EACH ROW
+BEGIN
+    IF TO_CHAR(SYSDATE, 'D') IN (1, 7) THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Inserts are only allowed Monday through Friday.');
+    END IF;
+END;
+
+
+#### **1. Client Master Table**
+INSERT INTO Client_master VALUES ('C00001', 'Ivan Bayross', 'Bombay', 400054, 'Maharashtra', 15000);
+INSERT INTO Client_master VALUES ('C00002', 'Vandana Saitwal', 'Madras', 780001, 'Tamil Nadu', 2500);
+INSERT INTO Client_master VALUES ('C00003', 'Pramada Jaguste', 'Bombay', 400057, 'Maharashtra', 5000);
+INSERT INTO Client_master VALUES ('C00004', 'Basu Navindgi', 'Bombay', 400001, 'Maharashtra', 2000);
+INSERT INTO Client_master VALUES ('C00005', 'Ravi Sreedharan', 'Delhi', 100001, 'Delhi', 0);
+INSERT INTO Client_master VALUES ('C00006', 'Amit Sharma', 'Bangalore', 560001, 'Karnataka', 10000);
+INSERT INTO Client_master VALUES ('C00007', 'Sonia Mehta', 'Chennai', 600001, 'Tamil Nadu', 7500);
+INSERT INTO Client_master VALUES ('C00008', 'Rahul Khanna', 'Kolkata', 700001, 'West Bengal', 12000);
+
+---
+
+#### **2. Product Master Table**
+INSERT INTO Product_master VALUES ('P00001', '1.44 Floppies', 5, 'Piece', 100, 20, 525, 500);
+INSERT INTO Product_master VALUES ('P03453', 'Monitors', 6, 'Piece', 10, 3, 12000, 11280);
+INSERT INTO Product_master VALUES ('P06734', 'Keyboards', 10, 'Piece', 50, 10, 500, 450);
+INSERT INTO Product_master VALUES ('P07865', 'Mouse', 8, 'Piece', 100, 15, 300, 250);
+INSERT INTO Product_master VALUES ('P09876', 'Printers', 12, 'Piece', 15, 5, 8000, 7500);
+INSERT INTO Product_master VALUES ('P12345', 'Hard Disks', 15, 'Piece', 30, 10, 5000, 4500);
+INSERT INTO Product_master VALUES ('P14567', 'USB Drives', 20, 'Piece', 200, 50, 1000, 900);
+INSERT INTO Product_master VALUES ('P19876', 'Webcams', 5, 'Piece', 40, 10, 1500, 1400);
+
+
+#### **3. Salesman Master Table**
+
+INSERT INTO Salesman_master VALUES ('S00001', 'Kiran', 'A/14', 'Worli', 'Bombay', 400001, 'Maharashtra', 3000, 200, 100, 'Good');
+INSERT INTO Salesman_master VALUES ('S00002', 'Rajesh', 'B/22', 'Andheri', 'Bombay', 400058, 'Maharashtra', 4000, 300, 200, 'Excellent');
+INSERT INTO Salesman_master VALUES ('S00003', 'Sita', 'C/33', 'Mylapore', 'Chennai', 600001, 'Tamil Nadu', 3500, 250, 150, 'Very Good');
+INSERT INTO Salesman_master VALUES ('S00004', 'Anita', 'D/44', 'Jayanagar', 'Bangalore', 560001, 'Karnataka', 3200, 220, 180, 'Good');
+INSERT INTO Salesman_master VALUES ('S00005', 'Amit', 'E/55', 'Salt Lake', 'Kolkata', 700091, 'West Bengal', 5000, 400, 300, 'Outstanding');
+INSERT INTO Salesman_master VALUES ('S00006', 'Vikas', 'F/66', 'Connaught Place', 'Delhi', 110001, 'Delhi', 4500, 350, 280, 'Excellent');
+
+
+---
+
+#### **4. Sales Order Table**
+
+INSERT INTO Sales_order VALUES ('O19001', TO_DATE('27-JAN-96', 'DD-MON-YY'), 'C00001', 'P/5', 'S00001');
+INSERT INTO Sales_order VALUES ('O19002', TO_DATE('28-JAN-96', 'DD-MON-YY'), 'C00002', 'P/6', 'S00002');
+INSERT INTO Sales_order VALUES ('O19003', TO_DATE('29-JAN-96', 'DD-MON-YY'), 'C00003', 'P/7', 'S00003');
+INSERT INTO Sales_order VALUES ('O19004', TO_DATE('30-JAN-96', 'DD-MON-YY'), 'C00004', 'P/8', 'S00004');
+INSERT INTO Sales_order VALUES ('O19005', TO_DATE('31-JAN-96', 'DD-MON-YY'), 'C00005', 'P/9', 'S00005');
+INSERT INTO Sales_order VALUES ('O19006', TO_DATE('01-FEB-96', 'DD-MON-YY'), 'C00006', 'P/10', 'S00006');
+INSERT INTO Sales_order VALUES ('O19007', TO_DATE('02-FEB-96', 'DD-MON-YY'), 'C00007', 'P/11', 'S00002');
+INSERT INTO Sales_order VALUES ('O19008', TO_DATE('03-FEB-96', 'DD-MON-YY'), 'C00008', 'P/12', 'S00003');
+
+
+---
+
+#### **5. Sales Order Details Table**
+
+INSERT INTO Sales_order_details VALUES ('O19001', 'P00001', 3, 2, 525);
+INSERT INTO Sales_order_details VALUES ('O19001', 'P03453', 2, 1, 12000);
+INSERT INTO Sales_order_details VALUES ('O19002', 'P06734', 5, 5, 500);
+INSERT INTO Sales_order_details VALUES ('O19003', 'P07865', 10, 9, 300);
+INSERT INTO Sales_order_details VALUES ('O19004', 'P09876', 1, 1, 8000);
+INSERT INTO Sales_order_details VALUES ('O19005', 'P12345', 2, 2, 5000);
+INSERT INTO Sales_order_details VALUES ('O19006', 'P14567', 15, 15, 1000);
+INSERT INTO Sales_order_details VALUES ('O19007', 'P19876', 4, 4, 1500);
+INSERT INTO Sales_order_details VALUES ('O19008', 'P06734', 6, 6, 500);
+INSERT INTO Sales_order_details VALUES ('O19008', 'P07865', 10, 10, 300);
+
